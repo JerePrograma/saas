@@ -73,7 +73,7 @@ public final class TenantDtos {
             String name,
             String status,
             String plan,
-
+            String slug,
             @Schema(
                     description = "Settings del tenant como objeto JSON (derivado de settings_json).",
                     example = "{\"modules\":{\"inventory\":true}}"

@@ -208,12 +208,19 @@ public class TenantAdminAppService {
     // Mapping DTOs
     // -------------------------------------------------------------------------
 
+
     private TenantDtos.TenantResponse toResponse(Tenant t) {
+        String slug = tenantKeyRepo
+                .findActiveByTenantAndType(t.getId(), KEY_TYPE_SLUG)
+                .map(TenantKey::getKeyValue)
+                .orElse(null);
+
         return new TenantDtos.TenantResponse(
                 t.getId(),
                 t.getName(),
                 t.getStatus().name(),
                 t.getPlan().name(),
+                slug,
                 parseJsonOrEmptyObject(t.getSettingsJson())
         );
     }
