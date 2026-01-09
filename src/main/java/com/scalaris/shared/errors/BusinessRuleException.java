@@ -1,8 +1,11 @@
-// ============================================================================
-// shared/errors/BusinessRuleException.java
-// ============================================================================
 package com.scalaris.shared.errors;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+
+@Schema(
+        name = "BusinessRuleException",
+        description = "Excepción por regla de negocio violada (se mapea típicamente a 422)."
+)
 public class BusinessRuleException extends RuntimeException {
     private final String code;
 
@@ -12,10 +15,10 @@ public class BusinessRuleException extends RuntimeException {
         this.code = code.trim();
     }
 
-    // Overload mínimo para no romper call-sites existentes
     public BusinessRuleException(String message) {
         this("BUSINESS_RULE", message);
     }
 
+    @Schema(description = "Código estable de la regla de negocio.", example = "BUSINESS_RULE")
     public String getCode() { return code; }
 }

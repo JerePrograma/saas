@@ -1,6 +1,3 @@
-// ============================================================================
-// modules/identity/api/dto/TenantDtos.java
-// ============================================================================
 package com.scalaris.modules.identity.api.dto;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -17,49 +14,67 @@ public final class TenantDtos {
     // Requests
     // -----------------------------
 
-    @Schema(name = "TenantCreateRequest")
+    @Schema(
+            name = "TenantCreateRequest",
+            description = "Crear tenant (nivel plataforma)."
+    )
     public record TenantCreateRequest(
-            @NotBlank
-            @Size(max = 120)
-            @Schema(example = "Mueblería Juan")
+            @Schema(description = "Nombre del tenant.", example = "Mueblería Juan", maxLength = 120)
+            @NotBlank @Size(max = 120)
             String name,
 
+            @Schema(
+                    description = "Plan inicial del tenant.",
+                    example = "BASIC",
+                    allowableValues = {"BASIC", "PRO", "ENTERPRISE"}
+            )
             @NotBlank
-            @Schema(description = "BASIC | PRO | ENTERPRISE", example = "BASIC")
             String plan,
 
             @Schema(
                     description = "Settings arbitrarios del tenant (se persisten en settings_json).",
-                    example = "{\"modules\":{\"inventory\":true}}"
+                    example = "{\"modules\":{\"inventory\":true}}",
+                    nullable = true
             )
             JsonNode settings
     ) {}
 
-    @Schema(name = "TenantUpdateRequest")
+    @Schema(
+            name = "TenantUpdateRequest",
+            description = "Actualizar tenant (no cambia slug automáticamente)."
+    )
     public record TenantUpdateRequest(
-            @NotBlank
-            @Size(max = 120)
-            @Schema(example = "Mueblería Juan (Sucursal Centro)")
+            @Schema(description = "Nuevo nombre del tenant.", example = "Mueblería Juan (Sucursal Centro)", maxLength = 120)
+            @NotBlank @Size(max = 120)
             String name,
 
             @Schema(
                     description = "Settings arbitrarios del tenant (se persisten en settings_json).",
-                    example = "{\"limits\":{\"users\":10}}"
+                    example = "{\"limits\":{\"users\":10}}",
+                    nullable = true
             )
             JsonNode settings
     ) {}
 
-    @Schema(name = "TenantChangeStatusRequest")
+    @Schema(name = "TenantChangeStatusRequest", description = "Cambio de status del tenant.")
     public record TenantChangeStatusRequest(
+            @Schema(
+                    description = "Nuevo status del tenant.",
+                    example = "SUSPENDED",
+                    allowableValues = {"ACTIVE", "SUSPENDED", "CANCELED"}
+            )
             @NotBlank
-            @Schema(description = "ACTIVE | SUSPENDED | CANCELED", example = "SUSPENDED")
             String status
     ) {}
 
-    @Schema(name = "TenantChangePlanRequest")
+    @Schema(name = "TenantChangePlanRequest", description = "Cambio de plan del tenant.")
     public record TenantChangePlanRequest(
+            @Schema(
+                    description = "Nuevo plan del tenant.",
+                    example = "PRO",
+                    allowableValues = {"BASIC", "PRO", "ENTERPRISE"}
+            )
             @NotBlank
-            @Schema(description = "BASIC | PRO | ENTERPRISE", example = "PRO")
             String plan
     ) {}
 
@@ -67,16 +82,45 @@ public final class TenantDtos {
     // Responses
     // -----------------------------
 
-    @Schema(name = "TenantResponse")
+    @Schema(
+            name = "TenantResponse",
+            description = "Tenant (nivel plataforma)."
+    )
     public record TenantResponse(
+            @Schema(description = "Tenant ID", format = "uuid", accessMode = Schema.AccessMode.READ_ONLY)
             UUID id,
+
+            @Schema(description = "Nombre", example = "Mueblería Juan", accessMode = Schema.AccessMode.READ_ONLY)
             String name,
+
+            @Schema(
+                    description = "Status",
+                    example = "ACTIVE",
+                    allowableValues = {"ACTIVE", "SUSPENDED", "CANCELED"},
+                    accessMode = Schema.AccessMode.READ_ONLY
+            )
             String status,
+
+            @Schema(
+                    description = "Plan",
+                    example = "BASIC",
+                    allowableValues = {"BASIC", "PRO", "ENTERPRISE"},
+                    accessMode = Schema.AccessMode.READ_ONLY
+            )
             String plan,
+
+            @Schema(
+                    description = "Slug estable del tenant (para `X-Tenant-Key`).",
+                    example = "muebleria-juan",
+                    nullable = true,
+                    accessMode = Schema.AccessMode.READ_ONLY
+            )
             String slug,
+
             @Schema(
                     description = "Settings del tenant como objeto JSON (derivado de settings_json).",
-                    example = "{\"modules\":{\"inventory\":true}}"
+                    example = "{\"modules\":{\"inventory\":true}}",
+                    accessMode = Schema.AccessMode.READ_ONLY
             )
             JsonNode settings
     ) {}

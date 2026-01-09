@@ -1,9 +1,7 @@
-// ============================================================================
-// shared/errors/ApiErrorHandler.java
-// ============================================================================
 package com.scalaris.shared.errors;
 
 import com.scalaris.shared.tracing.TraceIds;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolationException;
 import org.springframework.http.HttpStatus;
@@ -16,6 +14,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.ArrayList;
 import java.util.List;
 
+@Tag(name = "Errors", description = "Manejo global de errores de la API (respuesta estándar ApiError).")
 @RestControllerAdvice
 public class ApiErrorHandler {
 
