@@ -41,4 +41,10 @@ public class ThirdPartyTaxId {
     }
 
     @PrePersist void onCreate() { createdAt = OffsetDateTime.now(); }
+
+    public UUID getId() { return id; }
+    public TaxIdType getTaxIdType() { return taxIdType; }
+    public String getValue() { return value; }
+    public boolean isPrimary() { return primary; }
+    public void setPrimary(boolean primary) { this.primary = primary; }
 }

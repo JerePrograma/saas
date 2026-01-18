@@ -1,20 +1,25 @@
 package com.scalaris.auth.web;
 
 import com.auth0.jwt.exceptions.JWTVerificationException;
+import com.scalaris.api.ApiError;
 import com.scalaris.auth.repo.UserRepository;
 import com.scalaris.auth.service.AuthService;
-import com.scalaris.auth.service.InvalidCredentialsException;
 import com.scalaris.auth.service.TokenService;
 import com.scalaris.auth.web.dto.*;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.OffsetDateTime;
-import java.util.List;
 import java.util.UUID;
 
+@Tag(name = "Auth - Login", description = "Inicio de sesión, refresh y logout.")
 @RestController
 @RequestMapping("/api/v1/auth")
 public class LoginController {
@@ -29,8 +34,29 @@ public class LoginController {
         this.users = users;
     }
 
+    @Operation(summary = "Iniciar sesión",
+            description = "Valida credenciales y devuelve access/refresh tokens.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Autenticación OK",
+                    content = @Content(schema = @Schema(implementation = TokenResponse.class))),
+            @ApiResponse(responseCode = "400", description = "Validación de request fallida",
+                    content = @Content(schema = @Schema(implementation = ApiError.class))),
+            @ApiResponse(responseCode = "401", description = "Credenciales inválidas",
+                    content = @Content(schema = @Schema(implementation = ApiError.class)))
+    })
     @PostMapping("/login")
-    public ResponseEntity<TokenResponse> login(@RequestBody @Valid LoginRequest req) {
+    public ResponseEntity<TokenResponse> login(
+            @io.swagger.v3.oas.annotations.parameters.RequestBody(
+                    required = true,
+                    content = @Content(
+                            schema = @Schema(implementation = LoginRequest.class),
+                            examples = @ExampleObject(value = """
+                                    { "email": "user@demo.com", "password": "Password1" }
+                                    """)
+                    )
+            )
+            @RequestBody @Valid LoginRequest req
+    ) {
         var user = auth.authenticate(req);
         var issued = tokens.issueTokens(user);
 
@@ -43,15 +69,38 @@ public class LoginController {
         ));
     }
 
+    @Operation(summary = "Refresh token",
+            description = "Valida refreshToken y emite nuevos tokens. Recomendado rotación (refresh nuevo).")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Refresh OK",
+                    content = @Content(schema = @Schema(implementation = TokenResponse.class))),
+            @ApiResponse(responseCode = "400", description = "Validación de request fallida",
+                    content = @Content(schema = @Schema(implementation = ApiError.class))),
+            @ApiResponse(responseCode = "401", description = "Refresh inválido / vencido / revocado",
+                    content = @Content(schema = @Schema(implementation = ApiError.class)))
+    })
     @PostMapping("/refresh")
-    public ResponseEntity<TokenResponse> refresh(@RequestBody @Valid RefreshRequest req) {
+    public ResponseEntity<TokenResponse> refresh(
+            @io.swagger.v3.oas.annotations.parameters.RequestBody(
+                    required = true,
+                    content = @Content(
+                            schema = @Schema(implementation = RefreshRequest.class),
+                            examples = @ExampleObject(value = """
+                                    { "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." }
+                                    """)
+                    )
+            )
+            @RequestBody @Valid RefreshRequest req
+    ) {
         var decoded = tokens.verify(req.refreshToken());
         UUID userId = UUID.fromString(decoded.getSubject());
 
         var user = users.findById(userId)
                 .orElseThrow(() -> new JWTVerificationException("Usuario inexistente"));
 
-        var issued = tokens.refresh(req.refreshToken(), user);
+        // Nota: TokenService.refresh(...) hoy vuelve a verificar el JWT internamente.
+        // Si querés evitar doble verify, abajo te dejo un patch opcional.
+        var issued = tokens.refresh(decoded, user);
 
         return ResponseEntity.ok(new TokenResponse(
                 "Bearer",
@@ -62,25 +111,29 @@ public class LoginController {
         ));
     }
 
+    @Operation(summary = "Cerrar sesión (logout)",
+            description = "Revoca el refresh token provisto. El access token (si existe) expira por TTL.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "204", description = "Logout OK (refresh revocado)"),
+            @ApiResponse(responseCode = "400", description = "Validación de request fallida",
+                    content = @Content(schema = @Schema(implementation = ApiError.class))),
+            @ApiResponse(responseCode = "401", description = "Refresh inválido / ya revocado / vencido",
+                    content = @Content(schema = @Schema(implementation = ApiError.class)))
+    })
     @PostMapping("/logout")
-    public ResponseEntity<Void> logout(@RequestBody @Valid RefreshRequest req) {
+    public ResponseEntity<Void> logout(
+            @io.swagger.v3.oas.annotations.parameters.RequestBody(
+                    required = true,
+                    content = @Content(
+                            schema = @Schema(implementation = RefreshRequest.class),
+                            examples = @ExampleObject(value = """
+                                    { "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." }
+                                    """)
+                    )
+            )
+            @RequestBody @Valid RefreshRequest req
+    ) {
         tokens.revokeRefresh(req.refreshToken());
         return ResponseEntity.noContent().build();
-    }
-
-    // ---- errores mínimos (no overkill) ----
-    public record ApiError(String code, String message, OffsetDateTime timestamp, List<FieldViolation> violations) {}
-    public record FieldViolation(String field, String message) {}
-
-    @ExceptionHandler(InvalidCredentialsException.class)
-    public ResponseEntity<ApiError> invalidCreds(InvalidCredentialsException ex) {
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                .body(new ApiError("INVALID_CREDENTIALS", ex.getMessage(), OffsetDateTime.now(), List.of()));
-    }
-
-    @ExceptionHandler(JWTVerificationException.class)
-    public ResponseEntity<ApiError> invalidToken(JWTVerificationException ex) {
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                .body(new ApiError("INVALID_TOKEN", ex.getMessage(), OffsetDateTime.now(), List.of()));
     }
 }

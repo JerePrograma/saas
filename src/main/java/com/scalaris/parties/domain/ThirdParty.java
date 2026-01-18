@@ -107,7 +107,7 @@ public class ThirdParty {
     @Column(name = "updated_at", nullable = false)
     private OffsetDateTime updatedAt;
 
-    protected ThirdParty() {}
+    public ThirdParty() {}
 
     @PrePersist void onCreate() {
         var now = OffsetDateTime.now();
@@ -149,4 +149,39 @@ public class ThirdParty {
     public void setNotes(String notes) { this.notes = notes; }
     public List<ThirdPartyAddress> getAddresses() { return addresses; }
     public List<ThirdPartyTaxId> getTaxIds() { return taxIds; }
+
+    // getters necesarios para API/DTO mapping
+    public ThirdPartyKind getKind() { return kind; }
+    public PersonType getPersonType() { return personType; }
+
+    public String getDisplayName() { return displayName; }
+    public String getLegalName() { return legalName; }
+
+    public String getEmail() { return email; }
+    public String getPhone() { return phone; }
+
+    public String getDocumentType() { return documentType; }
+    public String getDocumentNumber() { return documentNumber; }
+
+    public LocalDate getBirthDate() { return birthDate; }
+
+    public MaritalStatus getMaritalStatus() { return maritalStatus; }
+    public Integer getChildrenCount() { return childrenCount; }
+    public Integer getHousesCount() { return housesCount; }
+    public Boolean getHasPartner() { return hasPartner; }
+
+    public String getCompanyName() { return companyName; }
+    public String getOfficeName() { return officeName; }
+    public Integer getEmployeesCount() { return employeesCount; }
+
+    public StylePreference getStylePreference() { return stylePreference; }
+
+    public TaxPosition getTaxPosition() { return taxPosition; }
+    public CompanyStructure getCompanyStructure() { return companyStructure; }
+
+    public String getNotes() { return notes; }
+
+    public OffsetDateTime getCreatedAt() { return createdAt; }
+    public OffsetDateTime getUpdatedAt() { return updatedAt; }
+
 }

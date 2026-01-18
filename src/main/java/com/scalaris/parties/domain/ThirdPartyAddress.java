@@ -48,4 +48,23 @@ public class ThirdPartyAddress {
     }
 
     @PrePersist void onCreate() { createdAt = OffsetDateTime.now(); }
+
+    // getters
+    public UUID getId() { return id; }
+    public AddressType getAddressType() { return addressType; }
+    public String getLine1() { return line1; }
+    public String getLine2() { return line2; }
+    public String getCity() { return city; }
+    public String getState() { return state; }
+    public String getZip() { return zip; }
+    public String getCountry() { return country; }
+    public boolean isPrimary() { return primary; }
+
+    // setters (para service)
+    public void setLine2(String line2) { this.line2 = line2; }
+    public void setCity(String city) { this.city = city; }
+    public void setState(String state) { this.state = state; }
+    public void setZip(String zip) { this.zip = zip; }
+    public void setCountry(String country) { this.country = country; }
+    public void setPrimary(boolean primary) { this.primary = primary; }
 }

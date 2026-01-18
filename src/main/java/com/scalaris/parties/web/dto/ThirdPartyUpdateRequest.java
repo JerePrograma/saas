@@ -1,14 +1,10 @@
 package com.scalaris.parties.web.dto;
 
-
 import com.scalaris.auth.domain.CompanyStructure;
 import com.scalaris.auth.domain.TaxPosition;
-import com.scalaris.parties.domain.MaritalStatus;
-import com.scalaris.parties.domain.PersonType;
-import com.scalaris.parties.domain.StylePreference;
-import com.scalaris.parties.domain.ThirdPartyKind;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
+import com.scalaris.parties.domain.*;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.*;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -16,24 +12,36 @@ import java.util.List;
 public record ThirdPartyUpdateRequest(
         @NotNull ThirdPartyKind kind,
         @NotNull PersonType personType,
-        @NotBlank String displayName,
-        String legalName,
-        String email,
-        String phone,
-        String documentType,
-        String documentNumber,
-        LocalDate birthDate,
+
+        @NotBlank
+        @Size(min = 3, max = 40, message = "Debe tener entre 3 y 40 caracteres")
+        String displayName,
+
+        @Size(max = 160) String legalName,
+
+        @Email @Size(max = 254) String email,
+        @Size(max = 40) String phone,
+
+        @Size(max = 20) String documentType,
+        @Size(max = 40) String documentNumber,
+
+        @PastOrPresent LocalDate birthDate,
+
         MaritalStatus maritalStatus,
-        Integer childrenCount,
-        Integer housesCount,
+        @Min(0) Integer childrenCount,
+        @Min(0) Integer housesCount,
         Boolean hasPartner,
-        String companyName,
-        String officeName,
-        Integer employeesCount,
+
+        @Size(max = 160) String companyName,
+        @Size(max = 160) String officeName,
+        @Min(0) Integer employeesCount,
+
         StylePreference stylePreference,
         TaxPosition taxPosition,
         CompanyStructure companyStructure,
+
         String notes,
-        List<ThirdPartyCreateRequest.TaxIdDto> taxIds,
-        List<ThirdPartyCreateRequest.AddressDto> addresses
+
+        @Valid List<ThirdPartyCreateRequest.TaxIdDto> taxIds,
+        @Valid List<ThirdPartyCreateRequest.AddressDto> addresses
 ) {}

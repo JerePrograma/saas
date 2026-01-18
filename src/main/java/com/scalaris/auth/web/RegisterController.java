@@ -1,19 +1,23 @@
 package com.scalaris.auth.web;
 
-import com.scalaris.auth.service.EmailAlreadyRegisteredException;
+import com.scalaris.api.ApiError;
 import com.scalaris.auth.service.RegistrationService;
+import com.scalaris.auth.web.dto.RegisterRequest;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.validation.FieldError;
-import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.OffsetDateTime;
-import java.util.List;
-
+@Tag(name = "Auth - Register", description = "Registro de usuario (check email + alta).")
 @RestController
 @RequestMapping("/api/v1/auth")
 public class RegisterController {
@@ -24,17 +28,63 @@ public class RegisterController {
         this.registration = registration;
     }
 
-    // Step1 helper: para que React valide email único antes de pasar al Step2
+    @Operation(summary = "Chequear disponibilidad de email",
+            description = "Helper para el Step1 (React). Si está ocupado retorna 409.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "204", description = "Email disponible"),
+            @ApiResponse(responseCode = "400", description = "Request inválido",
+                    content = @Content(schema = @Schema(implementation = ApiError.class))),
+            @ApiResponse(responseCode = "409", description = "Email ya registrado")
+    })
     @PostMapping("/register/check-email")
-    public ResponseEntity<Void> checkEmail(@RequestBody @Valid CheckEmailRequest req) {
-        boolean available = registration.isEmailAvailable(req.email());
+    public ResponseEntity<Void> checkEmail(
+            @io.swagger.v3.oas.annotations.parameters.RequestBody(
+                    required = true,
+                    content = @Content(
+                            schema = @Schema(implementation = CheckEmailRequest.class),
+                            examples = @ExampleObject(value = """
+                                    { "email": "user@demo.com" }
+                                    """)
+                    )
+            )
+            @RequestBody @Valid CheckEmailRequest req
+    ) {
+        boolean available = registration.isEmailAvailable(req.email().trim());
         return available ? ResponseEntity.noContent().build()
                 : ResponseEntity.status(HttpStatus.CONFLICT).build();
     }
 
-    // Registro final: Step1 + Step2
+    @Operation(summary = "Registrar usuario",
+            description = "Registro final (Step1 + Step2). Si el email ya existe retorna 409.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "201", description = "Usuario creado",
+                    content = @Content(schema = @Schema(implementation = RegisterResponse.class))),
+            @ApiResponse(responseCode = "400", description = "Validación / reglas de negocio fallidas",
+                    content = @Content(schema = @Schema(implementation = ApiError.class))),
+            @ApiResponse(responseCode = "409", description = "Email ya registrado",
+                    content = @Content(schema = @Schema(implementation = ApiError.class)))
+    })
     @PostMapping("/register")
-    public ResponseEntity<RegisterResponse> register(@RequestBody @Valid com.scalaris.auth.web.dto.RegisterRequest req) {
+    public ResponseEntity<RegisterResponse> register(
+            @io.swagger.v3.oas.annotations.parameters.RequestBody(
+                    required = true,
+                    content = @Content(
+                            schema = @Schema(implementation = RegisterRequest.class),
+                            examples = @ExampleObject(value = """
+                                    {
+                                      "fullName": "Juan Pérez",
+                                      "email": "juan@demo.com",
+                                      "password": "Abcdef12",
+                                      "confirmPassword": "Abcdef12",
+                                      "acceptedTerms": true,
+                                      "taxPosition": "MONOTRIBUTO",
+                                      "companyStructure": "UNIPERSONAL"
+                                    }
+                                    """)
+                    )
+            )
+            @RequestBody @Valid RegisterRequest req
+    ) {
         var user = registration.register(req);
 
         var body = new RegisterResponse(
@@ -48,73 +98,17 @@ public class RegisterController {
         return ResponseEntity.status(HttpStatus.CREATED).body(body);
     }
 
-    // ===== DTOs de respuesta / request puntuales del controller (siguen siendo records) =====
+    @Schema(name = "CheckEmailRequest")
+    public record CheckEmailRequest(
+            @NotBlank @Email @Schema(example = "user@demo.com") String email
+    ) {}
 
-    public record CheckEmailRequest(@NotBlank @Email String email) {}
-
+    @Schema(name = "RegisterResponse")
     public record RegisterResponse(
-            String id,
-            String fullName,
-            String email,
-            String role,
-            String createdAt
+            @Schema(example = "b3b1c2c0-9c7a-4a3c-9f14-9d2f5e5b5a01") String id,
+            @Schema(example = "Juan Pérez") String fullName,
+            @Schema(example = "juan@demo.com") String email,
+            @Schema(example = "EMPLOYEE") String role,
+            @Schema(example = "2026-01-13T16:12:30.309-03:00") String createdAt
     ) {}
-
-    public record ApiError(
-            String code,
-            String message,
-            OffsetDateTime timestamp,
-            List<FieldViolation> violations
-    ) {}
-
-    public record FieldViolation(String field, String message) {}
-
-    // ===== Exception mapping (parte de la capa web/MVC) =====
-
-    @ExceptionHandler(EmailAlreadyRegisteredException.class)
-    public ResponseEntity<ApiError> emailAlreadyRegistered(EmailAlreadyRegisteredException ex) {
-        return ResponseEntity.status(HttpStatus.CONFLICT).body(
-                new ApiError(
-                        "EMAIL_ALREADY_REGISTERED",
-                        ex.getMessage(),
-                        OffsetDateTime.now(),
-                        List.of()
-                )
-        );
-    }
-
-    @ExceptionHandler(IllegalArgumentException.class)
-    public ResponseEntity<ApiError> illegalArgument(IllegalArgumentException ex) {
-        return ResponseEntity.badRequest().body(
-                new ApiError(
-                        "INVALID_REGISTRATION",
-                        ex.getMessage(),
-                        OffsetDateTime.now(),
-                        List.of()
-                )
-        );
-    }
-
-    @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<ApiError> validation(MethodArgumentNotValidException ex) {
-        List<FieldViolation> violations = ex.getBindingResult()
-                .getFieldErrors()
-                .stream()
-                .map(fe -> new FieldViolation(fieldPath(fe), fe.getDefaultMessage()))
-                .toList();
-
-        return ResponseEntity.badRequest().body(
-                new ApiError(
-                        "VALIDATION_ERROR",
-                        "Hay campos inválidos",
-                        OffsetDateTime.now(),
-                        violations
-                )
-        );
-    }
-
-    private static String fieldPath(FieldError fe) {
-        // Ej: "step1.email" / "step2.acceptedTerms"
-        return fe.getField();
-    }
 }

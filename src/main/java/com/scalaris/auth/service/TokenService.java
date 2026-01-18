@@ -49,29 +49,26 @@ public class TokenService {
     }
 
     @Transactional
-    public IssuedTokens refresh(String refreshJwt, User user) {
-        DecodedJWT decoded = verify(refreshJwt);
-
+    public IssuedTokens refresh(com.auth0.jwt.interfaces.DecodedJWT decoded, User user) {
         if (!"REFRESH".equals(decoded.getClaim("type").asString())) {
-            throw new JWTVerificationException("Token no es REFRESH");
+            throw new com.auth0.jwt.exceptions.JWTVerificationException("Token no es REFRESH");
         }
         if (decoded.getId() == null) {
-            throw new JWTVerificationException("Refresh sin jti");
+            throw new com.auth0.jwt.exceptions.JWTVerificationException("Refresh sin jti");
         }
 
-        UUID jti = UUID.fromString(decoded.getId());
-        UUID subUserId = UUID.fromString(decoded.getSubject());
+        java.util.UUID jti = java.util.UUID.fromString(decoded.getId());
+        java.util.UUID subUserId = java.util.UUID.fromString(decoded.getSubject());
 
         if (!subUserId.equals(user.getId())) {
-            throw new JWTVerificationException("Refresh no pertenece al usuario");
+            throw new com.auth0.jwt.exceptions.JWTVerificationException("Refresh no pertenece al usuario");
         }
 
-        RefreshToken row = refreshRepo.findByIdAndRevokedAtIsNull(jti)
-                .orElseThrow(() -> new JWTVerificationException("Refresh revocado o inexistente"));
+        var row = refreshRepo.findByIdAndRevokedAtIsNull(jti)
+                .orElseThrow(() -> new com.auth0.jwt.exceptions.JWTVerificationException("Refresh revocado o inexistente"));
 
-        if (row.isExpired()) throw new JWTVerificationException("Refresh expirado");
+        if (row.isExpired()) throw new com.auth0.jwt.exceptions.JWTVerificationException("Refresh expirado");
 
-        // Rotación
         row.revokeNow();
         refreshRepo.save(row);
 
